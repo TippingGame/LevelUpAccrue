@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/LevelUpAccrue/LevelUpAccrue.csproj" />
+  <Project Path="tests/LevelUpAccrue.SmokeTests/LevelUpAccrue.SmokeTests.csproj" />
+</Solution>
