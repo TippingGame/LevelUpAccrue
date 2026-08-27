@@ -298,7 +298,7 @@
                             <DataGridTextColumn Header="姓名" Binding="{Binding Name}" Width="105" IsReadOnly="True" />
                             <DataGridTextColumn Header="上期累计" Binding="{Binding PreviousAmount, StringFormat=N2}" Width="96" IsReadOnly="True" />
                             <DataGridTextColumn Header="本期累计"
-                                                Binding="{Binding CurrentAmount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, StringFormat=N2}"
+                                                Binding="{Binding CurrentAmount, Mode=TwoWay, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True, StringFormat=N2}"
                                                 Width="104" />
                             <DataGridTemplateColumn Header="本期新增" Width="98" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
