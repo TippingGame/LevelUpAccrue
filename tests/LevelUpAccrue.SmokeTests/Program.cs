@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using LevelUpAccrue.Models;
 using LevelUpAccrue.Services;
 using LevelUpAccrue.ViewModels;
@@ -13,6 +14,7 @@ var tests = new (string Name, Action Run)[]
     ("计算前期累计与本期增量", CalculateDelta),
     ("新账期承接累计金额", CarryForwardPeriod),
     ("金额修改刷新汇总与预览", UpdateEntrySummary),
+    ("编辑事务中刷新会先提交编辑", RefreshDuringEditCommitsTransaction),
     ("预览选择支持全选和取消全选", PreviewSelectionActions),
     ("导入新增金额并添加人员", ImportIncrement),
     ("累计导入遇到重复人员取最后快照", ImportCumulativeSnapshot),
@@ -226,6 +228,20 @@ static void UpdateEntrySummary()
     Assert(row.IsReimbursed, "预览人员应能批量标记为已报销");
     Assert(viewModel.ReimbursedTotal == 75m, "已报销汇总应为 75");
     Assert(viewModel.PendingTotal == 0m, "待报销汇总应为 0");
+}
+
+static void RefreshDuringEditCommitsTransaction()
+{
+    var viewModel = new MainViewModel(SeedData.Create());
+    var editableView = viewModel.EntriesView as IEditableCollectionView
+        ?? throw new InvalidOperationException("明细视图应支持编辑事务");
+
+    editableView.EditItem(viewModel.Entries.First());
+    Assert(editableView.IsEditingItem, "测试前置条件：明细视图应处于编辑事务中");
+
+    viewModel.RefreshEntriesView();
+
+    Assert(!editableView.IsEditingItem, "刷新前应提交明细视图的编辑事务");
 }
 
 static void PreviewSelectionActions()

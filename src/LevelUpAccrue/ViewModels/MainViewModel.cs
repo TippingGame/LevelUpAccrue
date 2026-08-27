@@ -429,6 +429,19 @@ public sealed class MainViewModel : ObservableObject
 
     private void RefreshFilter()
     {
+        if (EntriesView is IEditableCollectionView editableView)
+        {
+            if (editableView.IsAddingNew)
+            {
+                editableView.CommitNew();
+            }
+
+            if (editableView.IsEditingItem)
+            {
+                editableView.CommitEdit();
+            }
+        }
+
         EntriesView.Refresh();
         OnPropertyChanged(nameof(PeopleCount));
     }
