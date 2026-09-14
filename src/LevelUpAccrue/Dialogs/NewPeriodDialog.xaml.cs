@@ -4,31 +4,25 @@ namespace LevelUpAccrue.Dialogs;
 
 public partial class NewPeriodDialog : Window
 {
-    public NewPeriodDialog(DateTime suggestedMonth)
+    public NewPeriodDialog(DateTime suggestedDate)
     {
         InitializeComponent();
-        MonthPicker.SelectedDate = suggestedMonth;
+        DatePicker.SelectedDate = suggestedDate;
     }
 
-    public DateTime SelectedMonth
-    {
-        get
-        {
-            var value = MonthPicker.SelectedDate ?? DateTime.Today;
-            return new DateTime(value.Year, value.Month, 1);
-        }
-    }
+    public DateTime SelectedDateTime { get; private set; }
 
     public bool CarryForward => CarryForwardBox.IsChecked == true;
 
     private void Confirm_Click(object sender, RoutedEventArgs e)
     {
-        if (MonthPicker.SelectedDate is null)
+        if (DatePicker.SelectedDate is null)
         {
-            MessageBox.Show("请选择一个月份。", "新建账期", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("请选择账期日期。", "新建账期", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
+        SelectedDateTime = DatePicker.SelectedDate.Value.Date.Add(DateTime.Now.TimeOfDay);
         DialogResult = true;
     }
 }

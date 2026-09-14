@@ -73,19 +73,13 @@ public partial class MainWindow : Window
 
     private void NewPeriod_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new NewPeriodDialog(ViewModel.SuggestedNextMonth) { Owner = this };
+        var dialog = new NewPeriodDialog(ViewModel.SuggestedPeriodDate) { Owner = this };
         if (dialog.ShowDialog() != true)
         {
             return;
         }
 
-        if (ViewModel.HasPeriod(dialog.SelectedMonth))
-        {
-            MessageBox.Show("这个月份已经有账期了。", "新建账期", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        ViewModel.CreatePeriod(dialog.SelectedMonth, dialog.CarryForward);
+        ViewModel.CreatePeriod(dialog.SelectedDateTime, dialog.CarryForward);
     }
 
     private void DeletePeriod_Click(object sender, RoutedEventArgs e)
@@ -102,7 +96,7 @@ public partial class MainWindow : Window
         }
 
         var result = MessageBox.Show(
-            $"确定删除 {ViewModel.SelectedPeriod.DisplayName} 吗？\n\n删除后，该月金额和报销状态将无法恢复。",
+            $"确定删除 {ViewModel.SelectedPeriod.DisplayName} 吗？\n\n删除后，该账期金额和报销状态将无法恢复。",
             "删除账期",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning,
@@ -306,7 +300,7 @@ public partial class MainWindow : Window
         {
             Title = "导出金额清单",
             Filter = "文本文件 (*.txt)|*.txt",
-            FileName = $"{ViewModel.SelectedPeriod.Month:yyyyMM}报销清单.txt",
+            FileName = $"{ViewModel.SelectedPeriod.Month:yyyyMMdd_HHmmss}报销清单.txt",
             AddExtension = true,
             DefaultExt = ".txt"
         };

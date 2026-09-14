@@ -204,13 +204,16 @@
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid>
+                                <Grid ToolTip="{Binding DisplayName}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE787;" Margin="0,0,9,0" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Month, StringFormat={}{0:yyyy-MM-dd}}" />
+                                        <TextBlock Text="{Binding Month, StringFormat={}{0:HH:mm:ss}}" FontSize="11" Margin="0,3,0,0" />
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -241,7 +244,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding PeriodCaption}" FontWeight="SemiBold" FontSize="17" />
+                        <TextBlock Text="{Binding PeriodCaption}" ToolTip="{Binding PeriodCaption}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" FontSize="17" />
                         <TextBlock Text="累计金额可直接编辑" Margin="0,3,0,0" Foreground="{StaticResource MutedBrush}" FontSize="11" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

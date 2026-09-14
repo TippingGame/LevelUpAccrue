@@ -13,6 +13,9 @@ var tests = new (string Name, Action Run)[]
     ("解析中文冒号与忽略总计", ParseChineseLedger),
     ("计算前期累计与本期增量", CalculateDelta),
     ("新账期承接累计金额", CarryForwardPeriod),
+    ("同月同日多账期按时间承接并排序", MultiplePeriodsPerDay),
+    ("同一时刻连续创建账期", RepeatedPeriodTimestamp),
+    ("同日人员变更保留历史且保存后不丢失", SameDayPeopleAndStoreRoundTrip),
     ("金额修改刷新汇总与预览", UpdateEntrySummary),
     ("编辑事务中刷新会先提交编辑", RefreshDuringEditCommitsTransaction),
     ("预览选择支持全选和取消全选", PreviewSelectionActions),
@@ -53,12 +56,13 @@ static void FirstRunCreatesEmptyLedger()
     try
     {
         var store = new LedgerStore(directory);
+        var before = DateTime.Now;
         var data = store.LoadOrCreate();
-        var expectedMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var after = DateTime.Now;
 
         Assert(data.People.Count == 0, "首次运行不应带入示例人员");
         Assert(data.Periods.Count == 1, "首次运行应创建一个空账期");
-        Assert(data.Periods[0].Month == expectedMonth, "空账期应使用当前月份");
+        Assert(data.Periods[0].Month >= before && data.Periods[0].Month <= after, "空账期应使用当前日期时间");
         Assert(data.Periods[0].Entries.Count == 0, "空账期不应带入金额记录");
     }
     finally
@@ -192,6 +196,94 @@ static void CarryForwardPeriod()
     Assert(viewModel.Entries.Count == 21, "应承接 21 人");
     Assert(viewModel.PeriodTotal == 0m, "承接后的初始增量应为 0");
     Assert(viewModel.Entries.All(entry => entry.CurrentAmount == entry.PreviousAmount), "累计金额应与上期相同");
+}
+
+static void MultiplePeriodsPerDay()
+{
+    var firstTime = new DateTime(2026, 9, 14, 9, 15, 30);
+    var viewModel = new MainViewModel(LedgerData.CreateEmpty(firstTime));
+    viewModel.AddPerson("测试人员");
+    viewModel.Entries.Single().CurrentAmount = 100m;
+    viewModel.CreatePeriod(firstTime.AddHours(1), carryForward: true);
+    var second = viewModel.SelectedPeriod!;
+    Assert(viewModel.Periods.Count == 2, "同一天应允许多个账期");
+    Assert(second.Month == firstTime.AddHours(1), "应保留日期和时间");
+    Assert(second.DisplayName == "2026年9月14日 10:15:30", "账期名称应包含年月日和时间");
+    Assert(viewModel.Entries.Single().CurrentAmount == 100m && viewModel.PeriodTotal == 0m,
+        "同日新账期应承接前一期金额");
+    viewModel.ImportAmounts([new ImportedAmount("测试人员", 25m, "test.txt")], ImportAmountMode.Increment, false);
+    Assert(viewModel.Entries.Single().Delta == 25m, "同日增量导入应以前一期为基准");
+    viewModel.CreatePeriod(firstTime.AddDays(1), carryForward: true);
+    var third = viewModel.SelectedPeriod!;
+    Assert(viewModel.Entries.Single().CurrentAmount == 125m && viewModel.PeriodTotal == 0m,
+        "次日账期应承接最近一期金额");
+    viewModel.CreatePeriod(firstTime.AddMinutes(30), carryForward: true);
+    Assert(viewModel.Entries.Single().CurrentAmount == 100m, "补建历史账期不应承接未来金额");
+    Assert(viewModel.Periods[0].Id == third.Id && viewModel.Periods[1].Id == second.Id,
+        "列表应按完整时间倒序排列");
+    viewModel.CreatePeriod(firstTime.AddDays(2), carryForward: false);
+    Assert(viewModel.Entries.Single().CurrentAmount == 0m, "不承接金额时应从零开始");
+}
+
+static void RepeatedPeriodTimestamp()
+{
+    var timestamp = new DateTime(2026, 9, 14, 9, 0, 0);
+    var viewModel = new MainViewModel(LedgerData.CreateEmpty(timestamp));
+    viewModel.AddPerson("测试人员");
+    for (var i = 1; i <= 3; i++)
+    {
+        viewModel.Entries.Single().CurrentAmount = i * 100m;
+        viewModel.CreatePeriod(timestamp, carryForward: true);
+        Assert(viewModel.Periods.Count == i + 1, "相同时刻也应创建独立账期");
+        Assert(viewModel.Entries.Single().PreviousAmount == i * 100m && viewModel.PeriodTotal == 0m,
+            "连续创建应承接刚才的账期");
+    }
+    Assert(viewModel.Periods.Select(period => period.Id).Distinct().Count() == 4, "账期编号应互不相同");
+}
+
+static void SameDayPeopleAndStoreRoundTrip()
+{
+    var directory = CreateTempDirectory();
+    try
+    {
+        var timestamp = new DateTime(2026, 9, 14, 9, 0, 0);
+        var viewModel = new MainViewModel(LedgerData.CreateEmpty(timestamp));
+        var first = viewModel.SelectedPeriod!;
+        viewModel.AddPerson("原人员");
+        viewModel.Entries.Single().CurrentAmount = 100m;
+        viewModel.CreatePeriod(timestamp.AddHours(1), carryForward: true);
+        var second = viewModel.SelectedPeriod!;
+        Assert(viewModel.DeactivateSelectedPerson(), "应从当前账期移除原人员");
+        viewModel.AddPerson("新人员");
+        viewModel.Entries.Single().CurrentAmount = 50m;
+        viewModel.CreatePeriod(timestamp.AddHours(2), carryForward: true);
+        var third = viewModel.SelectedPeriod!;
+        Assert(viewModel.Entries.Single().Name == "新人员", "后续账期应沿用人员变更");
+
+        var store = new LedgerStore(directory);
+        store.Save(viewModel.Data);
+        var restored = new MainViewModel(store.LoadOrCreate());
+        Assert(store.RecoveryMessage is null && restored.Periods.Count == 3, "同日多个账期应正常载入");
+        Assert(restored.Periods.Select(period => period.Month).SequenceEqual(viewModel.Periods.Select(period => period.Month)),
+            "保存应保留完整时间和排序");
+        restored.SelectedPeriod = restored.Periods.Single(period => period.Id == first.Id);
+        Assert(restored.Entries.Single().Name == "原人员" && restored.Entries.Single().CurrentAmount == 100m,
+            "删除人员不应影响同日较早账期，新增人员也不应出现于历史账期");
+        restored.SelectedPeriod = restored.Periods.Single(period => period.Id == second.Id);
+        Assert(restored.Entries.Single().Name == "新人员", "人员生效时间应在保存后保留");
+        restored.SelectedPeriod = restored.Periods.Single(period => period.Id == third.Id);
+        Assert(restored.Entries.Single().PreviousAmount == 50m && restored.PeriodTotal == 0m,
+            "重新载入后应正确承接同日账期金额");
+        Assert(restored.DeleteSelectedPeriod() && restored.Periods.Count == 2, "删除账期应仅删除所选实例");
+
+        var backupPath = Path.Combine(directory, "backup.json");
+        store.ExportBackup(restored.Data, backupPath);
+        Assert(store.LoadFromFile(backupPath).Periods.Count == 2, "备份恢复应接受同日多个账期");
+    }
+    finally
+    {
+        DeleteTempDirectory(directory);
+    }
 }
 
 static void ImportIncrement()

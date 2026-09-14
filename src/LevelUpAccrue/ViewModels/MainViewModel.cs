@@ -110,9 +110,7 @@ public sealed class MainViewModel : ObservableObject
     public string PreviewText => TextLedgerService.Format(
         SelectedEntries.Select(entry => (entry.Name, entry.Delta)));
 
-    public DateTime SuggestedNextMonth => Periods.Count == 0
-        ? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)
-        : Periods.Max(period => period.Month).AddMonths(1);
+    public DateTime SuggestedPeriodDate => DateTime.Today;
 
     public void ReplaceData(LedgerData data)
     {
@@ -122,19 +120,12 @@ public sealed class MainViewModel : ObservableObject
         DataChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public bool HasPeriod(DateTime month)
-    {
-        var normalized = NormalizeMonth(month);
-        return _data.Periods.Any(period => period.Month == normalized);
-    }
-
     public void CreatePeriod(DateTime month, bool carryForward)
     {
-        month = NormalizeMonth(month);
-        if (HasPeriod(month))
+        // 时钟精度相同的创建请求仍按先后顺序承接金额。
+        while (_data.Periods.Any(period => period.Month == month))
         {
-            SelectedPeriod = _data.Periods.Single(period => period.Month == month);
-            return;
+            month = month.AddTicks(1);
         }
 
         var period = new LedgerPeriod { Month = month };
@@ -456,8 +447,6 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PeopleCount));
         OnPropertyChanged(nameof(PreviewText));
     }
-
-    private static DateTime NormalizeMonth(DateTime value) => new(value.Year, value.Month, 1);
 
     private static string AppendSource(string existing, string source)
     {

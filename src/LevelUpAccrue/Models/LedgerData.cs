@@ -14,11 +14,10 @@ public sealed class LedgerData
 
     public static LedgerData CreateEmpty(DateTime? month = null)
     {
-        var value = month ?? DateTime.Today;
-        var normalizedMonth = new DateTime(value.Year, value.Month, 1);
+        var value = month ?? DateTime.Now;
         return new LedgerData
         {
-            Periods = [new LedgerPeriod { Month = normalizedMonth }]
+            Periods = [new LedgerPeriod { Month = value }]
         };
     }
 }
@@ -32,13 +31,7 @@ public sealed class Person
 
     public bool IsVisibleIn(DateTime month)
     {
-        var normalized = new DateTime(month.Year, month.Month, 1);
-        var activeFrom = new DateTime(ActiveFromMonth.Year, ActiveFromMonth.Month, 1);
-        var inactiveFrom = InactiveFromMonth is null
-            ? (DateTime?)null
-            : new DateTime(InactiveFromMonth.Value.Year, InactiveFromMonth.Value.Month, 1);
-
-        return normalized >= activeFrom && (inactiveFrom is null || normalized < inactiveFrom.Value);
+        return month >= ActiveFromMonth && (InactiveFromMonth is null || month < InactiveFromMonth.Value);
     }
 }
 
@@ -49,7 +42,7 @@ public sealed class LedgerPeriod
     public List<LedgerEntry> Entries { get; set; } = [];
 
     [JsonIgnore]
-    public string DisplayName => $"{Month:yyyy年M月}";
+    public string DisplayName => $"{Month:yyyy年M月d日 HH:mm:ss}";
 }
 
 public sealed class LedgerEntry

@@ -116,14 +116,6 @@ public sealed class LedgerStore
         foreach (var person in data.People)
         {
             person.Name = person.Name?.Trim() ?? string.Empty;
-            person.ActiveFromMonth = new DateTime(person.ActiveFromMonth.Year, person.ActiveFromMonth.Month, 1);
-            if (person.InactiveFromMonth is not null)
-            {
-                person.InactiveFromMonth = new DateTime(
-                    person.InactiveFromMonth.Value.Year,
-                    person.InactiveFromMonth.Value.Month,
-                    1);
-            }
         }
 
         if (data.People.Any(person => person.Id == Guid.Empty || string.IsNullOrWhiteSpace(person.Name)))
@@ -138,7 +130,6 @@ public sealed class LedgerStore
 
         foreach (var period in data.Periods)
         {
-            period.Month = new DateTime(period.Month.Year, period.Month.Month, 1);
             period.Entries ??= [];
             foreach (var entry in period.Entries)
             {
@@ -147,9 +138,10 @@ public sealed class LedgerStore
             }
         }
 
-        if (data.Periods.GroupBy(period => period.Month).Any(group => group.Count() > 1))
+        if (data.Periods.Any(period => period.Id == Guid.Empty) ||
+            data.Periods.GroupBy(period => period.Id).Any(group => group.Count() > 1))
         {
-            throw new InvalidDataException("同一个月份存在多个账期。");
+            throw new InvalidDataException("账期编号为空或存在重复。");
         }
     }
 }
